@@ -3,8 +3,8 @@ CKEditor Installation
 
 The CKEditor source is not shipped with the bundle due to license restriction
 (GPL, LGPL and MPL) whereas the bundle relies on the MIT one which are not
-compatible together. To install CKEditor source, you can use the Composer script
-via the built-in Symfony command.
+compatible together. To install CKEditor source, you can use the built-in
+Symfony command.
 
 Composer Script
 ---------------
@@ -17,20 +17,16 @@ assets installation).
 
     {
         "scripts": {
-            "symfony-scripts": [
-                "Incenteev\\ParameterHandler\\ScriptHandler::buildParameters",
-                "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::buildBootstrap",
-                "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::clearCache",
-                "FOS\\CKEditorBundle\\Composer\\CKEditorScriptHandler::install",
-                "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::installAssets",
-                "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::installRequirementsFile",
-                "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::prepareDeploymentTarget"
-            ],
+            "auto-scripts": {
+                "cache:clear": "symfony-cmd",
+                "ckeditor:install --clear=drop": "symfony-cmd",
+                "assets:install --symlink --relative %PUBLIC_DIR%": "symfony-cmd"
+            },
             "post-install-cmd": [
-                "@symfony-scripts"
+                "@auto-scripts"
             ],
             "post-update-cmd": [
-                "@symfony-scripts"
+                "@auto-scripts"
             ]
         }
     }
@@ -52,14 +48,6 @@ Download Path
 If you don't want to download CKEditor in the ``Resource/public`` directory of
 the bundle, you can use a custom path (absolute):
 
-.. code-block:: json
-
-    {
-        "extra": {
-            "ckeditor-path": "/var/www/html/web/ckeditor"
-        }
-    }
-
 .. code-block:: bash
 
     $ php bin/console ckeditor:install /var/www/html/web/ckeditor
@@ -69,34 +57,39 @@ CKEditor Release
 
 You can choose which CKEditor release (full, standard or basic) to download:
 
-.. code-block:: json
-
-    {
-        "extra": {
-            "ckeditor-release": "basic"
-        }
-    }
-
 .. code-block:: bash
 
     $ php bin/console ckeditor:install --release=basic
+
+CKEditor Custom Build
+~~~~~~~~~~~~~~~~~~~~~
+
+It's also possible to use custom build generated using CKEditor online builder:
+https://ckeditor.com/cke4/builder. Download ZIP archive from CKEditor website
+and use your custom build ID from `build-config.js` file:
+
+.. code-block:: bash
+
+    $ php bin/console ckeditor:install --release=custom --custom-build-id=574a82a0d3e9226d94b0e91d10eaa372
 
 CKEditor Version
 ~~~~~~~~~~~~~~~~
 
 If your want a specific CKEditor version, you can use:
 
-.. code-block:: json
-
-    {
-        "extra": {
-            "ckeditor-tag": "4.6.0"
-        }
-    }
-
 .. code-block:: bash
 
     $ php bin/console ckeditor:install --tag=4.6.0
+
+Silence Progress bars
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+While downloading files necessary for the install, a progress bar will be shown
+by default, if you would prefer hiding it, use:
+
+.. code-block:: bash
+
+    $ php bin/console ckeditor:install --no-progress-bar
 
 Clear Previous Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -104,14 +97,6 @@ Clear Previous Installation
 By default, the command will ask you what to do when there is a previous CKEditor
 installation detected but in non interactive mode, you can control automatically
 how to handle such case:
-
-.. code-block:: json
-
-    {
-        "extra": {
-            "ckeditor-clear": "drop"
-        }
-    }
 
 .. code-block:: bash
 
@@ -128,17 +113,6 @@ Path Exclusion
 
 When extracting the downloaded CKEditor ZIP archive, you can exclude paths
 such as samples, adapters, whatever:
-
-.. code-block:: json
-
-    {
-        "extra": {
-            "ckeditor-exclude": [
-                "samples",
-                "adapters"
-            ]
-        }
-    }
 
 .. code-block:: bash
 

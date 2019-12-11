@@ -12,13 +12,14 @@
 
 namespace FOS\CKEditorBundle\Tests\Installer;
 
+use FOS\CKEditorBundle\Exception\BadProxyUrlException;
 use FOS\CKEditorBundle\Installer\CKEditorInstaller;
-use FOS\CKEditorBundle\Tests\AbstractTestCase;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @author GeLo <geloen.eric@gmail.com>
  */
-class CKEditorInstallerTest extends AbstractTestCase
+class CKEditorInstallerTest extends TestCase
 {
     /**
      * @var CKEditorInstaller
@@ -35,36 +36,30 @@ class CKEditorInstallerTest extends AbstractTestCase
      */
     private $proxy;
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->installer = new CKEditorInstaller();
         $this->path = __DIR__.'/../../src/Resources/public';
-        $this->proxy = 'http://178.32.218.91:80';
+        $this->proxy = 'http://184.105.143.66:3128';
 
         $this->tearDown();
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function tearDown()
+    protected function tearDown(): void
     {
         if (file_exists($this->path)) {
             exec('rm -rf '.$this->path);
         }
     }
 
-    public function testInstall()
+    public function testInstall(): void
     {
         $this->installer->install();
 
         $this->assertInstall();
     }
 
-    public function testInstallWithPath()
+    public function testInstallWithPath(): void
     {
         $this->path = sys_get_temp_dir().'/fos-ckeditor-installer-test';
         $this->installer->install(['path' => $this->path]);
@@ -72,28 +67,54 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall();
     }
 
-    public function testInstallWithRelease()
+    public function testInstallWithRelease(): void
     {
         $this->installer->install($options = ['release' => CKEditorInstaller::RELEASE_BASIC]);
 
         $this->assertInstall($options);
     }
 
-    public function testInstallWithVersion()
+    public function testInstallWithCustomBuild(): void
+    {
+        $this->installer->install($options = ['release' => CKEditorInstaller::RELEASE_CUSTOM, 'custom_build_id' => '574a82a0d3e9226d94b0e91d10eaa372']);
+
+        $this->assertInstall($options);
+    }
+
+    public function testInstallWithCustomBuildWithInvalidVersion(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageRegExp('/Specifying version for custom build is not supported/');
+
+        $this->installer->install($options = ['release' => CKEditorInstaller::RELEASE_CUSTOM, 'custom_build_id' => '574a82a0d3e9226d94b0e91d10eaa372', 'version' => '4.11.4']);
+    }
+
+    public function testInstallWithCustomBuildWithMissingId(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageRegExp('/Custom build ID is not specified/');
+
+        $this->installer->install($options = ['release' => CKEditorInstaller::RELEASE_CUSTOM]);
+    }
+
+    public function testInstallWithVersion(): void
     {
         $this->installer->install($options = ['version' => '4.6.0']);
 
         $this->assertInstall($options);
     }
 
-    public function testInstallWithExcludes()
+    public function testInstallWithExcludes(): void
     {
         $this->installer->install($options = ['excludes' => ['adapters', 'samples']]);
 
         $this->assertInstall($options);
     }
 
-    public function testInstallWithHttpProxy()
+    /**
+     * @group proxy
+     */
+    public function testInstallWithHttpProxy(): void
     {
         putenv('http_proxy='.$this->proxy);
         $this->installer->install();
@@ -102,7 +123,10 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall();
     }
 
-    public function testInstallWithHttpsProxy()
+    /**
+     * @group proxy
+     */
+    public function testInstallWithHttpsProxy(): void
     {
         putenv('https_proxy='.$this->proxy);
         $this->installer->install();
@@ -111,6 +135,9 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall();
     }
 
+    /**
+     * @group proxy
+     */
     public function testInstallWithHttpProxyRequestFullUri()
     {
         putenv('http_proxy='.$this->proxy);
@@ -124,7 +151,10 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall();
     }
 
-    public function testInstallWithHttpsProxyRequestFullUri()
+    /**
+     * @group proxy
+     */
+    public function testInstallWithHttpsProxyRequestFullUri(): void
     {
         putenv('https_proxy='.$this->proxy);
         putenv('https_proxy_request_fulluri=true');
@@ -137,7 +167,29 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall();
     }
 
-    public function testReinstall()
+    /**
+     * @group proxy
+     */
+    public function testInstallWithProxyUrlMissingHost(): void
+    {
+        putenv('http_proxy=notgonnahappen');
+
+        $this->expectException(BadProxyUrlException::class);
+        $this->installer->install();
+    }
+
+    /**
+     * @group proxy
+     */
+    public function testInstallWithProxyUrlMissingPort(): void
+    {
+        putenv('http_proxy=http://notgonnahappen.com');
+
+        $this->expectException(BadProxyUrlException::class);
+        $this->installer->install();
+    }
+
+    public function testReinstall(): void
     {
         $this->installer->install();
         $this->installer->install();
@@ -145,7 +197,7 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall();
     }
 
-    public function testReinstallWithClearDrop()
+    public function testReinstallWithClearDrop(): void
     {
         $this->installer->install();
         $this->installer->install($options = [
@@ -156,7 +208,7 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall($options);
     }
 
-    public function testReinstallWithClearKeep()
+    public function testReinstallWithClearKeep(): void
     {
         $this->installer->install(['release' => CKEditorInstaller::RELEASE_BASIC]);
         $this->installer->install($options = [
@@ -168,7 +220,7 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall($options);
     }
 
-    public function testReinstallWithClearSkip()
+    public function testReinstallWithClearSkip(): void
     {
         $this->installer->install($options = ['version' => '4.6.0']);
         $this->installer->install(['clear' => CKEditorInstaller::CLEAR_SKIP]);
@@ -176,19 +228,21 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertInstall($options);
     }
 
-    /**
-     * @param mixed[] $options
-     */
-    private function assertInstall(array $options = [])
+    private function assertInstall(array $options = []): void
     {
         $this->assertFileExists($this->path.'/ckeditor.js');
 
-        if (isset($options['release'])) {
-            $this->assertRelease($options['release']);
-        }
+        if (CKEditorInstaller::RELEASE_CUSTOM === ($options['release'] ?? '')) {
+            $this->assertFileExists($this->path.'/build-config.js');
+            $this->assertContains($options['custom_build_id'], file_get_contents($this->path.'/build-config.js'));
+        } else {
+            if (isset($options['release'])) {
+                $this->assertRelease($options['release']);
+            }
 
-        if (isset($options['version'])) {
-            $this->assertVersion($options['version']);
+            if (isset($options['version'])) {
+                $this->assertVersion($options['version']);
+            }
         }
 
         if (!isset($options['excludes'])) {
@@ -198,10 +252,7 @@ class CKEditorInstallerTest extends AbstractTestCase
         $this->assertExcludes($options['excludes']);
     }
 
-    /**
-     * @param string $release
-     */
-    private function assertRelease($release)
+    private function assertRelease(string $release): void
     {
         switch ($release) {
             case CKEditorInstaller::RELEASE_FULL:
@@ -223,10 +274,7 @@ class CKEditorInstallerTest extends AbstractTestCase
         }
     }
 
-    /**
-     * @param string $version
-     */
-    private function assertVersion($version)
+    private function assertVersion(string $version): void
     {
         $package = json_decode(file_get_contents($this->path.'/package.json'), true);
 
@@ -238,7 +286,7 @@ class CKEditorInstallerTest extends AbstractTestCase
     /**
      * @param string[] $excludes
      */
-    private function assertExcludes(array $excludes)
+    private function assertExcludes(array $excludes): void
     {
         foreach ($excludes as $exclude) {
             $this->assertFileNotExists($this->path.'/'.$exclude);

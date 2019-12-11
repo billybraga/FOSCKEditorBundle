@@ -13,6 +13,8 @@
 namespace FOS\CKEditorBundle\Tests\Template;
 
 use FOS\CKEditorBundle\Twig\CKEditorExtension;
+use Twig\Environment;
+use Twig\Loader\ArrayLoader;
 
 /**
  * @author GeLo <geloen.eric@gmail.com>
@@ -20,37 +22,31 @@ use FOS\CKEditorBundle\Twig\CKEditorExtension;
 class TwigTemplateTest extends AbstractTemplateTest
 {
     /**
-     * @var \Twig\Environment
+     * @var Environment
      */
     private $twig;
 
     /**
-     * @var \Twig\Template
+     * @var Template
      */
     private $template;
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
         $symfonyTheme = '{% block widget_attributes %}{% endblock %}';
         $ckeditorTheme = file_get_contents(__DIR__.'/../../src/Resources/views/Form/ckeditor_widget.html.twig');
 
-        $this->twig = new \Twig_Environment(new \Twig_Loader_Array([
+        $this->twig = new Environment(new ArrayLoader([
             'ckeditor' => $symfonyTheme.$ckeditorTheme,
         ]));
 
         $this->twig->addExtension(new CKEditorExtension($this->renderer));
-        $this->template = $this->twig->loadTemplate('ckeditor');
+        $this->template = $this->twig->load('ckeditor');
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function renderTemplate(array $context = [])
+    protected function renderTemplate(array $context = []): string
     {
         return $this->template->renderBlock('ckeditor_widget', $context);
     }

@@ -15,19 +15,20 @@ namespace FOS\CKEditorBundle\Tests\Renderer;
 use FOS\CKEditorBundle\Builder\JsonBuilder;
 use FOS\CKEditorBundle\Renderer\CKEditorRenderer;
 use FOS\CKEditorBundle\Renderer\CKEditorRendererInterface;
-use FOS\CKEditorBundle\Tests\AbstractTestCase;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Asset\Packages;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RouterInterface;
-use Symfony\Component\Templating\EngineInterface;
+use Twig\Environment;
 
 /**
  * @author GeLo <geloen.eric@gmail.com>
  */
-class CKEditorRendererTest extends AbstractTestCase
+class CKEditorRendererTest extends TestCase
 {
     /**
      * @var CKEditorRenderer
@@ -60,19 +61,11 @@ class CKEditorRendererTest extends AbstractTestCase
     private $router;
 
     /**
-     * @var EngineInterface|\PHPUnit_Framework_MockObject_MockObject
-     */
-    private $templating;
-
-    /**
-     * @var \Twig\Environment|\PHPUnit_Framework_MockObject_MockObject
+     * @var Environment|\PHPUnit_Framework_MockObject_MockObject
      */
     private $twig;
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->request = $this->createMock(Request::class);
         $this->router = $this->createMock(RouterInterface::class);
@@ -82,54 +75,22 @@ class CKEditorRendererTest extends AbstractTestCase
 
         $this->requestStack = $this->createMock(RequestStack::class);
         $this->requestStack->expects($this->any())->method('getCurrentRequest')->will($this->returnValue($this->request));
-        $this->templating = $this->createMock(EngineInterface::class);
-        $this->twig = $this->getMockBuilder(\Twig_Environment::class)
+        $this->twig = $this->getMockBuilder(Environment::class)
             ->disableOriginalConstructor()
             ->getMock();
 
-        $this->renderer = new CKEditorRenderer(new JsonBuilder(), $this->router, $this->packages, $this->requestStack, $this->templating);
+        $this->renderer = new CKEditorRenderer(new JsonBuilder(new PropertyAccessor()), $this->router, $this->packages, $this->requestStack, $this->twig);
     }
 
-    public function testDefaultState()
+    public function testDefaultState(): void
     {
         $this->assertInstanceOf(CKEditorRendererInterface::class, $this->renderer);
     }
 
     /**
-     * @group legacy
-     * @expectedDeprecation Passing a %s as %s first argument is deprecated since %s, and will be removed in %s. Use %s instead.
-     */
-    public function testLegacyContstructor()
-    {
-        $container = $this->createMock(ContainerInterface::class);
-        $container->expects($this->exactly(5))
-            ->method('get')
-            ->withConsecutive(
-                ['fos_ck_editor.renderer.json_builder'],
-                ['router'],
-                ['assets.packages'],
-                ['request_stack'],
-                ['templating']
-            )
-            ->willReturnMap([
-                ['fos_ck_editor.renderer.json_builder', new JsonBuilder()],
-                ['router', $this->router],
-                ['assets.packages', $this->packages],
-                ['request_stack', $this->requestStack],
-                ['templating', $this->templating],
-            ]);
-
-        new CKEditorRenderer($container);
-    }
-
-    /**
-     * @param string $path
-     * @param string $asset
-     * @param string $url
-     *
      * @dataProvider directoryAssetProvider
      */
-    public function testRenderBasePath($path, $asset, $url)
+    public function testRenderBasePath(string $path, string $asset, string $url): void
     {
         $this->packages
             ->expects($this->once())
@@ -140,7 +101,7 @@ class CKEditorRendererTest extends AbstractTestCase
         $this->assertSame($url, $this->renderer->renderBasePath($path));
     }
 
-    public function testRenderJsPath()
+    public function testRenderJsPath(): void
     {
         $this->packages
             ->expects($this->once())
@@ -152,12 +113,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $symfonyLocale
-     * @param string $ckEditorLocale
-     *
      * @dataProvider languageProvider
      */
-    public function testRenderWidgetWithLocaleRequest($symfonyLocale, $ckEditorLocale)
+    public function testRenderWidgetWithLocaleRequest(string $symfonyLocale, string $ckEditorLocale): void
     {
         $this->request
             ->expects($this->once())
@@ -171,12 +129,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $symfonyLocale
-     * @param string $ckEditorLocale
-     *
      * @dataProvider languageProvider
      */
-    public function testRenderWidgetWithLocaleParameter($symfonyLocale, $ckEditorLocale)
+    public function testRenderWidgetWithLocaleParameter(string $symfonyLocale, string $ckEditorLocale): void
     {
         $this->request->expects($this->once())->method('getLocale')->will($this->returnValue($symfonyLocale));
         $this->assertSame(
@@ -186,12 +141,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $symfonyLocale
-     * @param string $ckEditorLocale
-     *
      * @dataProvider languageProvider
      */
-    public function testRenderWidgetWithExplicitLanguage($symfonyLocale, $ckEditorLocale)
+    public function testRenderWidgetWithExplicitLanguage(string $symfonyLocale, string $ckEditorLocale): void
     {
         $this->assertSame(
             'CKEDITOR.replace("foo", {"language":"'.$ckEditorLocale.'"});',
@@ -199,7 +151,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithoutLocale()
+    public function testRenderWidgetWithoutLocale(): void
     {
         $this->request
             ->expects($this->once())
@@ -213,13 +165,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $path
-     * @param string $asset
-     * @param string $url
-     *
      * @dataProvider fileAssetProvider
      */
-    public function testRenderWidgetWithStringContentsCss($path, $asset, $url)
+    public function testRenderWidgetWithStringContentsCss(string $path, string $asset, string $url): void
     {
         $this->packages
             ->expects($this->once())
@@ -240,7 +188,7 @@ class CKEditorRendererTest extends AbstractTestCase
      *
      * @dataProvider filesAssetProvider
      */
-    public function testRenderWidgetWithArrayContentsCss(array $paths, array $assets, array $urls)
+    public function testRenderWidgetWithArrayContentsCss(array $paths, array $assets, array $urls): void
     {
         foreach (array_keys($paths) as $key) {
             $this->packages
@@ -257,11 +205,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $filebrowser
-     *
      * @dataProvider filebrowserProvider
      */
-    public function testRenderWidgetWithFileBrowser($filebrowser)
+    public function testRenderWidgetWithFileBrowser(string $filebrowser): void
     {
         $this->assertSame(
             'CKEDITOR.replace("foo", {"filebrowser'.$filebrowser.'Url":"'.($url = 'browse_url').'"});',
@@ -269,7 +215,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithCustomFileBrowser()
+    public function testRenderWidgetWithCustomFileBrowser(): void
     {
         $this->assertSame(
             'CKEDITOR.replace("foo", {"filebrowser'.($filebrowser = 'VideoBrowse').'Url":"'.($url = 'browse_url').'"});',
@@ -282,11 +228,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $filebrowser
-     *
      * @dataProvider filebrowserProvider
      */
-    public function testRenderWidgetWithMinimalRouteFileBrowser($filebrowser)
+    public function testRenderWidgetWithMinimalRouteFileBrowser(string $filebrowser): void
     {
         $this->router
             ->expects($this->once())
@@ -305,11 +249,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $filebrowser
-     *
      * @dataProvider filebrowserProvider
      */
-    public function testRenderWidgetWithMaximalRouteFileBrowser($filebrowser)
+    public function testRenderWidgetWithMaximalRouteFileBrowser(string $filebrowser): void
     {
         $this->router
             ->expects($this->once())
@@ -332,11 +274,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $filebrowser
-     *
      * @dataProvider filebrowserProvider
      */
-    public function testRenderWidgetWithRouteFileBrowserHandler($filebrowser)
+    public function testRenderWidgetWithRouteFileBrowserHandler(string $filebrowser): void
     {
         $this->router
             ->expects($this->once())
@@ -358,7 +298,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithProtectedSource()
+    public function testRenderWidgetWithProtectedSource(): void
     {
         $this->assertSame(
             'CKEDITOR.replace("foo", {"protectedSource":[/<\?[\s\S]*?\?>/g,/<%[\s\S]*?%>/g]});',
@@ -371,7 +311,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithStylesheetParserSkipSelectors()
+    public function testRenderWidgetWithStylesheetParserSkipSelectors(): void
     {
         $this->assertSame(
             'CKEDITOR.replace("foo", {"stylesheetParser_skipSelectors":/(^body\.|^caption\.|\.high|^\.)/i});',
@@ -381,7 +321,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithStylesheetParserValidSelectors()
+    public function testRenderWidgetWithStylesheetParserValidSelectors(): void
     {
         $this->assertSame(
             'CKEDITOR.replace("foo", {"stylesheetParser_validSelectors":/\^(p|span)\.\w+/});',
@@ -391,7 +331,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithCKEditorConstants()
+    public function testRenderWidgetWithCKEditorConstants(): void
     {
         $this->assertSame(
             'CKEDITOR.replace("foo", {"config":{"enterMode":CKEDITOR.ENTER_BR,"shiftEnterMode":CKEDITOR.ENTER_BR}});',
@@ -404,7 +344,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithoutAutoInline()
+    public function testRenderWidgetWithoutAutoInline(): void
     {
         $this->assertSame(
             'CKEDITOR.disableAutoInline = true;'."\n".'CKEDITOR.replace("foo", []);',
@@ -412,7 +352,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithInline()
+    public function testRenderWidgetWithInline(): void
     {
         $this->assertSame(
             'CKEDITOR.inline("foo", []);',
@@ -420,7 +360,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderWidgetWithInputSync()
+    public function testRenderWidgetWithInputSync(): void
     {
         $this->assertSame(
             'var fos_ckeditor_foo = CKEDITOR.replace("foo", []);'."\n".
@@ -429,7 +369,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    public function testRenderDestroy()
+    public function testRenderDestroy(): void
     {
         $this->assertSame(
             'if (CKEDITOR.instances["foo"]) { '.
@@ -441,13 +381,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $path
-     * @param string $asset
-     * @param string $url
-     *
      * @dataProvider directoryAssetProvider
      */
-    public function testRenderPlugin($path, $asset, $url)
+    public function testRenderPlugin(string $path, string $asset, string $url): void
     {
         $this->packages
             ->expects($this->once())
@@ -470,13 +406,9 @@ class CKEditorRendererTest extends AbstractTestCase
     }
 
     /**
-     * @param string $path
-     * @param string $asset
-     * @param string $url
-     *
      * @dataProvider directoryAssetProvider
      */
-    public function testRenderTemplate($path, $asset, $url)
+    public function testRenderTemplate(string $path, string $asset, string $url): void
     {
         $templates = [
             [
@@ -499,54 +431,7 @@ class CKEditorRendererTest extends AbstractTestCase
         );
     }
 
-    /**
-     * @param string $path
-     * @param string $asset
-     * @param string $url
-     *
-     * @dataProvider directoryAssetProvider
-     */
-    public function testRenderTemplateWithEngineInteface($path, $asset, $url)
-    {
-        $templates = [
-            [
-                'title' => 'Template title',
-                'template' => $template = 'template_name',
-                'template_parameters' => $templateParameters = ['foo' => 'bar'],
-            ],
-        ];
-
-        $processedTemplates = [
-            [
-                'title' => 'Template title',
-                'html' => $html = '<p>Template content</p>',
-            ],
-        ];
-
-        $this->packages
-            ->expects($this->once())
-            ->method('getUrl')
-            ->with($this->equalTo($path))
-            ->will($this->returnValue($asset));
-
-        $this->templating
-            ->expects($this->once())
-            ->method('render')
-            ->with($this->identicalTo($template), $this->identicalTo($templateParameters))
-            ->will($this->returnValue($html));
-
-        $json = json_encode(['imagesPath' => $url, 'templates' => $processedTemplates]);
-
-        $this->assertSame(
-            'CKEDITOR.addTemplates("foo", '.$json.');',
-            $this->renderer->renderTemplate('foo', ['imagesPath' => $path, 'templates' => $templates])
-        );
-    }
-
-    /**
-     * @return array
-     */
-    public function languageProvider()
+    public function languageProvider(): array
     {
         return [
             ['en', 'en'],
@@ -554,10 +439,7 @@ class CKEditorRendererTest extends AbstractTestCase
         ];
     }
 
-    /**
-     * @return array
-     */
-    public function directoryAssetProvider()
+    public function directoryAssetProvider(): array
     {
         return [
             ['directory/', 'url/', 'url/'],
@@ -565,10 +447,7 @@ class CKEditorRendererTest extends AbstractTestCase
         ];
     }
 
-    /**
-     * @return array
-     */
-    public function fileAssetProvider()
+    public function fileAssetProvider(): array
     {
         return [
             ['file.js', 'url.js', 'url.js'],
@@ -576,10 +455,7 @@ class CKEditorRendererTest extends AbstractTestCase
         ];
     }
 
-    /**
-     * @return array
-     */
-    public function filesAssetProvider()
+    public function filesAssetProvider(): array
     {
         return [
             [['file'], ['url'], ['url']],
@@ -591,10 +467,7 @@ class CKEditorRendererTest extends AbstractTestCase
         ];
     }
 
-    /**
-     * @return array
-     */
-    public function filebrowserProvider()
+    public function filebrowserProvider(): array
     {
         return [
             ['Browse'],

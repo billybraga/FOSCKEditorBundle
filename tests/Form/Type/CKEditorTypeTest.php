@@ -12,21 +12,18 @@
 
 namespace FOS\CKEditorBundle\Tests\Form\Type;
 
+use FOS\CKEditorBundle\Config\CKEditorConfiguration;
+use FOS\CKEditorBundle\DependencyInjection\Configuration;
 use FOS\CKEditorBundle\Form\Type\CKEditorType;
-use FOS\CKEditorBundle\Model\ConfigManagerInterface;
-use FOS\CKEditorBundle\Model\PluginManagerInterface;
-use FOS\CKEditorBundle\Model\StylesSetManagerInterface;
-use FOS\CKEditorBundle\Model\TemplateManagerInterface;
-use FOS\CKEditorBundle\Model\ToolbarManagerInterface;
-use FOS\CKEditorBundle\Tests\AbstractTestCase;
-use Symfony\Component\Form\AbstractType;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
 
 /**
  * @author GeLo <geloen.eric@gmail.com>
  */
-class CKEditorTypeTest extends AbstractTestCase
+class CKEditorTypeTest extends TestCase
 {
     /**
      * @var FormFactoryInterface
@@ -43,113 +40,20 @@ class CKEditorTypeTest extends AbstractTestCase
      */
     private $formType;
 
-    /**
-     * @var ConfigManagerInterface|\PHPUnit_Framework_MockObject_MockObject
-     */
-    private $configManager;
-
-    /**
-     * @var PluginManagerInterface|\PHPUnit_Framework_MockObject_MockObject
-     */
-    private $pluginManager;
-
-    /**
-     * @var StylesSetManagerInterface|\PHPUnit_Framework_MockObject_MockObject
-     */
-    private $stylesSetManager;
-
-    /**
-     * @var TemplateManagerInterface|\PHPUnit_Framework_MockObject_MockObject
-     */
-    private $templateManager;
-
-    /**
-     * @var ToolbarManagerInterface|\PHPUnit_Framework_MockObject_MockObject
-     */
-    private $toolbarManager;
-
-    /**
-     * {@inheritdooc}.
-     */
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->configManager = $this->createMock(ConfigManagerInterface::class);
-        $this->pluginManager = $this->createMock(PluginManagerInterface::class);
-        $this->stylesSetManager = $this->createMock(StylesSetManagerInterface::class);
-        $this->templateManager = $this->createMock(TemplateManagerInterface::class);
-        $this->toolbarManager = $this->createMock(ToolbarManagerInterface::class);
-
-        $this->ckEditorType = new CKEditorType(
-            $this->configManager,
-            $this->pluginManager,
-            $this->stylesSetManager,
-            $this->templateManager,
-            $this->toolbarManager
-        );
+        $this->ckEditorType = new CKEditorType(new CKEditorConfiguration(
+            (new Processor())->processConfiguration(new Configuration(), [])
+        ));
 
         $this->factory = Forms::createFormFactoryBuilder()
             ->addType($this->ckEditorType)
             ->getFormFactory();
 
-        $this->formType = method_exists(AbstractType::class, 'getBlockPrefix') ? CKEditorType::class : 'ckeditor';
+        $this->formType = CKEditorType::class;
     }
 
-    public function testInitialState()
-    {
-        $this->assertTrue($this->ckEditorType->isEnable());
-        $this->assertFalse($this->ckEditorType->isAsync());
-        $this->assertTrue($this->ckEditorType->isAutoload());
-        $this->assertTrue($this->ckEditorType->isAutoInline());
-        $this->assertFalse($this->ckEditorType->isInline());
-        $this->assertFalse($this->ckEditorType->useJquery());
-        $this->assertFalse($this->ckEditorType->isInputSync());
-        $this->assertFalse($this->ckEditorType->useRequireJs());
-        $this->assertFalse($this->ckEditorType->hasFilebrowsers());
-        $this->assertSame('bundles/fosckeditor/', $this->ckEditorType->getBasePath());
-        $this->assertSame('bundles/fosckeditor/ckeditor.js', $this->ckEditorType->getJsPath());
-        $this->assertSame('bundles/fosckeditor/adapters/jquery.js', $this->ckEditorType->getJqueryPath());
-        $this->assertSame($this->configManager, $this->ckEditorType->getConfigManager());
-        $this->assertSame($this->pluginManager, $this->ckEditorType->getPluginManager());
-        $this->assertSame($this->stylesSetManager, $this->ckEditorType->getStylesSetManager());
-        $this->assertSame($this->templateManager, $this->ckEditorType->getTemplateManager());
-        $this->assertSame($this->toolbarManager, $this->ckEditorType->getToolbarManager());
-    }
-
-    public function testSetFilebrowsers()
-    {
-        $this->ckEditorType->setFilebrowsers($filebrowsers = [
-            'VideoBrowse',
-            'VideoUpload',
-        ]);
-
-        $this->assertTrue($this->ckEditorType->hasFilebrowsers());
-        $this->assertSame($filebrowsers, $this->ckEditorType->getFilebrowsers());
-
-        foreach ($filebrowsers as $filebrowser) {
-            $this->assertTrue($this->ckEditorType->hasFilebrowser($filebrowser));
-        }
-    }
-
-    public function testAddFilebrowser()
-    {
-        $this->ckEditorType->addFilebrowser($filebrowser = 'VideoBrowse');
-
-        $this->assertTrue($this->ckEditorType->hasFilebrowsers());
-        $this->assertSame([$filebrowser], $this->ckEditorType->getFilebrowsers());
-        $this->assertTrue($this->ckEditorType->hasFilebrowser($filebrowser));
-    }
-
-    public function testRemoveFilebrowser()
-    {
-        $this->ckEditorType->addFilebrowser($filebrowser = 'VideoBrowse');
-        $this->ckEditorType->removeFilebrowser($filebrowser);
-
-        $this->assertFalse($this->ckEditorType->hasFilebrowsers());
-        $this->assertEmpty($this->ckEditorType->getFilebrowsers());
-        $this->assertFalse($this->ckEditorType->hasFilebrowser($filebrowser));
-    }
-
-    public function testEnableWithDefaultValue()
+    public function testEnableWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -158,18 +62,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertTrue($view->vars['enable']);
     }
 
-    public function testEnableWithConfiguredValue()
-    {
-        $this->ckEditorType->isEnable(false);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('enable', $view->vars);
-        $this->assertFalse($view->vars['enable']);
-    }
-
-    public function testEnableWithExplicitValue()
+    public function testEnableWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['enable' => false]);
         $view = $form->createView();
@@ -178,7 +71,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertFalse($view->vars['enable']);
     }
 
-    public function testAsyncWithDefaultValue()
+    public function testAsyncWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -187,18 +80,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertFalse($view->vars['async']);
     }
 
-    public function testAsyncWithConfiguredValue()
-    {
-        $this->ckEditorType->isAsync(true);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('async', $view->vars);
-        $this->assertTrue($view->vars['async']);
-    }
-
-    public function testAsyncWithExplicitValue()
+    public function testAsyncWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['async' => true]);
         $view = $form->createView();
@@ -207,7 +89,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertTrue($view->vars['async']);
     }
 
-    public function testAutoloadWithDefaultValue()
+    public function testAutoloadWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -216,18 +98,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertTrue($view->vars['autoload']);
     }
 
-    public function testAutoloadWithConfiguredValue()
-    {
-        $this->ckEditorType->isAutoload(false);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('autoload', $view->vars);
-        $this->assertFalse($view->vars['autoload']);
-    }
-
-    public function testAutoloadWithExplicitValue()
+    public function testAutoloadWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['autoload' => false]);
         $view = $form->createView();
@@ -236,7 +107,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertFalse($view->vars['autoload']);
     }
 
-    public function testAutoInlineWithDefaultValue()
+    public function testAutoInlineWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -245,18 +116,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertTrue($view->vars['auto_inline']);
     }
 
-    public function testAutoInlineWithConfiguredValue()
-    {
-        $this->ckEditorType->isAutoInline(false);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('auto_inline', $view->vars);
-        $this->assertFalse($view->vars['auto_inline']);
-    }
-
-    public function testAutoInlineWithExplicitValue()
+    public function testAutoInlineWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['auto_inline' => false]);
         $view = $form->createView();
@@ -265,7 +125,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertFalse($view->vars['auto_inline']);
     }
 
-    public function testInlineWithDefaultValue()
+    public function testInlineWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -274,18 +134,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertFalse($view->vars['inline']);
     }
 
-    public function testInlineWithConfiguredValue()
-    {
-        $this->ckEditorType->isInline(true);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('inline', $view->vars);
-        $this->assertTrue($view->vars['inline']);
-    }
-
-    public function testInlineWithExplicitValue()
+    public function testInlineWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['inline' => true]);
         $view = $form->createView();
@@ -294,7 +143,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertTrue($view->vars['inline']);
     }
 
-    public function testJqueryWithDefaultValue()
+    public function testJqueryWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -303,18 +152,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertFalse($view->vars['jquery']);
     }
 
-    public function testJqueryWithConfiguredValue()
-    {
-        $this->ckEditorType->useJquery(true);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('jquery', $view->vars);
-        $this->assertTrue($view->vars['jquery']);
-    }
-
-    public function testJqueryWithExplicitValue()
+    public function testJqueryWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['jquery' => true]);
         $view = $form->createView();
@@ -323,7 +161,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertTrue($view->vars['jquery']);
     }
 
-    public function testInputSyncWithDefaultValue()
+    public function testInputSyncWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -332,18 +170,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertFalse($view->vars['input_sync']);
     }
 
-    public function testInputSyncWithConfiguredValue()
-    {
-        $this->ckEditorType->isInputSync(true);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('input_sync', $view->vars);
-        $this->assertTrue($view->vars['input_sync']);
-    }
-
-    public function testInputSyncWithExplicitValue()
+    public function testInputSyncWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['input_sync' => true]);
         $view = $form->createView();
@@ -352,7 +179,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertTrue($view->vars['input_sync']);
     }
 
-    public function testRequireJsWithDefaultValue()
+    public function testRequireJsWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -361,18 +188,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertFalse($view->vars['require_js']);
     }
 
-    public function testRequireJsWithConfiguredValue()
-    {
-        $this->ckEditorType->useRequireJs(true);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('require_js', $view->vars);
-        $this->assertTrue($view->vars['require_js']);
-    }
-
-    public function testRequireJsWithExplicitValue()
+    public function testRequireJsWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['require_js' => true]);
         $view = $form->createView();
@@ -381,7 +197,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertTrue($view->vars['require_js']);
     }
 
-    public function testFilebrowsersWithDefaultValue()
+    public function testFilebrowsersWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -390,21 +206,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertEmpty($view->vars['filebrowsers']);
     }
 
-    public function testFilebrowsersWithConfiguredValue()
-    {
-        $this->ckEditorType->setFilebrowsers($filebrowsers = [
-            'VideoBrowser',
-            'VideoUpload',
-        ]);
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('filebrowsers', $view->vars);
-        $this->assertSame($filebrowsers, $view->vars['filebrowsers']);
-    }
-
-    public function testFilebrowsersWithExplicitValue()
+    public function testFilebrowsersWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['filebrowsers' => $filebrowsers = [
             'VideoBrowse',
@@ -417,7 +219,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame($filebrowsers, $view->vars['filebrowsers']);
     }
 
-    public function testBaseAndJsPathWithDefaultValues()
+    public function testBaseAndJsPathWithDefaultValues(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -429,21 +231,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame('bundles/fosckeditor/ckeditor.js', $view->vars['js_path']);
     }
 
-    public function testBaseAndJsPathWithConfiguredValues()
-    {
-        $this->ckEditorType->setBasePath('foo/base/');
-        $this->ckEditorType->setJsPath('foo/ckeditor.js');
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('base_path', $view->vars);
-        $this->assertSame('foo/base/', $view->vars['base_path']);
-
-        $this->assertArrayHasKey('js_path', $view->vars);
-        $this->assertSame('foo/ckeditor.js', $view->vars['js_path']);
-    }
-
-    public function testBaseAndJsPathWithExplicitValues()
+    public function testBaseAndJsPathWithExplicitValues(): void
     {
         $form = $this->factory->create(
             $this->formType,
@@ -463,7 +251,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame('foo/ckeditor.js', $view->vars['js_path']);
     }
 
-    public function testJqueryPathWithDefaultValue()
+    public function testJqueryPathWithDefaultValue(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -472,17 +260,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame('bundles/fosckeditor/adapters/jquery.js', $view->vars['jquery_path']);
     }
 
-    public function testJqueryPathWithConfiguredValue()
-    {
-        $this->ckEditorType->setJqueryPath('foo/jquery.js');
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('jquery_path', $view->vars);
-        $this->assertSame('foo/jquery.js', $view->vars['jquery_path']);
-    }
-
-    public function testJqueryPathWithExplicitValue()
+    public function testJqueryPathWithExplicitValue(): void
     {
         $form = $this->factory->create($this->formType, null, ['jquery_path' => 'foo/jquery.js']);
         $view = $form->createView();
@@ -491,16 +269,16 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame('foo/jquery.js', $view->vars['jquery_path']);
     }
 
-    public function testDefaultConfig()
+    public function testDefaultConfig(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
 
         $this->assertArrayHasKey('config', $view->vars);
-        $this->assertEmpty(json_decode($view->vars['config'], true));
+        $this->assertEmpty($view->vars['config']);
     }
 
-    public function testConfigWithExplicitConfig()
+    public function testConfigWithExplicitConfig(): void
     {
         $options = [
             'config' => [
@@ -509,17 +287,6 @@ class CKEditorTypeTest extends AbstractTestCase
             ],
         ];
 
-        $this->configManager
-            ->expects($this->once())
-            ->method('setConfig')
-            ->with($this->anything(), $this->equalTo($options['config']));
-
-        $this->configManager
-            ->expects($this->once())
-            ->method('getConfig')
-            ->with($this->anything())
-            ->will($this->returnValue($options['config']));
-
         $form = $this->factory->create($this->formType, null, $options);
         $view = $form->createView();
 
@@ -527,106 +294,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame($options['config'], $view->vars['config']);
     }
 
-    public function testConfigWithConfiguredConfig()
-    {
-        $config = [
-            'toolbar' => 'default',
-            'uiColor' => '#ffffff',
-        ];
-
-        $this->configManager
-            ->expects($this->once())
-            ->method('mergeConfig')
-            ->with($this->equalTo('default'), $this->equalTo([]));
-
-        $this->configManager
-            ->expects($this->once())
-            ->method('getConfig')
-            ->with($this->identicalTo('default'))
-            ->will($this->returnValue($config));
-
-        $this->toolbarManager
-            ->expects($this->once())
-            ->method('resolveToolbar')
-            ->with($this->identicalTo('default'))
-            ->will($this->returnValue($config['toolbar'] = ['foo' => 'bar']));
-
-        $form = $this->factory->create($this->formType, null, ['config_name' => 'default']);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('config', $view->vars);
-        $this->assertSame($config, $view->vars['config']);
-    }
-
-    public function testConfigWithDefaultConfiguredConfig()
-    {
-        $options = [
-            'toolbar' => ['foo' => 'bar'],
-            'uiColor' => '#ffffff',
-        ];
-
-        $this->configManager
-            ->expects($this->once())
-            ->method('getDefaultConfig')
-            ->will($this->returnValue('config'));
-
-        $this->configManager
-            ->expects($this->once())
-            ->method('mergeConfig')
-            ->with($this->equalTo('config'), $this->equalTo([]));
-
-        $this->configManager
-            ->expects($this->once())
-            ->method('getConfig')
-            ->with('config')
-            ->will($this->returnValue($options));
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('config', $view->vars);
-        $this->assertSame($options, $view->vars['config']);
-    }
-
-    public function testConfigWithExplicitAndConfiguredConfig()
-    {
-        $configuredConfig = [
-            'toolbar' => 'default',
-            'uiColor' => '#ffffff',
-        ];
-
-        $explicitConfig = ['uiColor' => '#000000'];
-
-        $this->configManager
-            ->expects($this->once())
-            ->method('mergeConfig')
-            ->with($this->equalTo('default'), $this->equalTo($explicitConfig));
-
-        $this->configManager
-            ->expects($this->once())
-            ->method('getConfig')
-            ->with('default')
-            ->will($this->returnValue(array_merge($configuredConfig, $explicitConfig)));
-
-        $this->toolbarManager
-            ->expects($this->once())
-            ->method('resolveToolbar')
-            ->with($this->identicalTo('default'))
-            ->will($this->returnValue($configuredConfig['toolbar'] = ['foo' => 'bar']));
-
-        $form = $this->factory->create(
-            $this->formType,
-            null,
-            ['config_name' => 'default', 'config' => $explicitConfig]
-        );
-
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('config', $view->vars);
-        $this->assertSame(array_merge($configuredConfig, $explicitConfig), $view->vars['config']);
-    }
-
-    public function testDefaultPlugins()
+    public function testDefaultPlugins(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -635,7 +303,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertEmpty($view->vars['plugins']);
     }
 
-    public function testPluginsWithExplicitPlugins()
+    public function testPluginsWithExplicitPlugins(): void
     {
         $plugins = [
             'wordcount' => [
@@ -643,16 +311,6 @@ class CKEditorTypeTest extends AbstractTestCase
                 'filename' => 'plugin.js',
             ],
         ];
-
-        $this->pluginManager
-            ->expects($this->once())
-            ->method('setPlugins')
-            ->with($this->equalTo($plugins));
-
-        $this->pluginManager
-            ->expects($this->once())
-            ->method('getPlugins')
-            ->will($this->returnValue($plugins));
 
         $form = $this->factory->create($this->formType, null, ['plugins' => $plugins]);
 
@@ -662,61 +320,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame($plugins, $view->vars['plugins']);
     }
 
-    public function testPluginsWithConfiguredPlugins()
-    {
-        $plugins = [
-            'wordcount' => [
-                'path' => '/my/path',
-                'filename' => 'plugin.js',
-            ],
-        ];
-
-        $this->pluginManager
-            ->expects($this->once())
-            ->method('getPlugins')
-            ->will($this->returnValue($plugins));
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('plugins', $view->vars);
-        $this->assertSame($plugins, $view->vars['plugins']);
-    }
-
-    public function testPluginsWithConfiguredAndExplicitPlugins()
-    {
-        $configuredPlugins = [
-            'wordcount' => [
-                'path' => '/my/explicit/path',
-                'filename' => 'plugin.js',
-            ],
-        ];
-
-        $explicitPlugins = [
-            'autogrow' => [
-                'path' => '/my/configured/path',
-                'filename' => 'plugin.js',
-            ],
-        ];
-
-        $this->pluginManager
-            ->expects($this->once())
-            ->method('setPlugins')
-            ->with($this->equalTo($explicitPlugins));
-
-        $this->pluginManager
-            ->expects($this->once())
-            ->method('getPlugins')
-            ->will($this->returnValue(array_merge($explicitPlugins, $configuredPlugins)));
-
-        $form = $this->factory->create($this->formType, null, ['plugins' => $explicitPlugins]);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('plugins', $view->vars);
-        $this->assertSame(array_merge($explicitPlugins, $configuredPlugins), $view->vars['plugins']);
-    }
-
-    public function testDefaultStylesSet()
+    public function testDefaultStylesSet(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -724,7 +328,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertEmpty($view->vars['styles']);
     }
 
-    public function testPluginsWithExplicitStylesSet()
+    public function testPluginsWithExplicitStylesSet(): void
     {
         $stylesSets = [
             'default' => [
@@ -732,16 +336,6 @@ class CKEditorTypeTest extends AbstractTestCase
                 ['name' => 'CSS Style', 'element' => 'span', 'attributes' => ['class' => 'my_style']],
             ],
         ];
-
-        $this->stylesSetManager
-            ->expects($this->once())
-            ->method('setStylesSets')
-            ->with($this->equalTo($stylesSets));
-
-        $this->stylesSetManager
-            ->expects($this->once())
-            ->method('getStylesSets')
-            ->will($this->returnValue($stylesSets));
 
         $form = $this->factory->create($this->formType, null, ['styles' => $stylesSets]);
 
@@ -750,57 +344,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame($stylesSets, $view->vars['styles']);
     }
 
-    public function testPluginsWithConfiguredStylesSets()
-    {
-        $stylesSets = [
-            'default' => [
-                ['name' => 'Blue Title', 'element' => 'h2', 'styles' => ['color' => 'Blue']],
-                ['name' => 'CSS Style', 'element' => 'span', 'attributes' => ['class' => 'my_style']],
-            ],
-        ];
-
-        $this->stylesSetManager
-            ->expects($this->once())
-            ->method('getStylesSets')
-            ->will($this->returnValue($stylesSets));
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertSame($stylesSets, $view->vars['styles']);
-    }
-
-    public function testPluginsWithConfiguredAndExplicitStylesSets()
-    {
-        $configuredStylesSets = [
-            'foo' => [
-                ['name' => 'Blue Title', 'element' => 'h2', 'styles' => ['color' => 'Blue']],
-            ],
-        ];
-
-        $explicitStylesSets = [
-            'bar' => [
-                ['name' => 'CSS Style', 'element' => 'span', 'attributes' => ['class' => 'my_style']],
-            ],
-        ];
-
-        $this->stylesSetManager
-            ->expects($this->once())
-            ->method('setStylesSets')
-            ->with($this->equalTo($explicitStylesSets));
-
-        $this->stylesSetManager
-            ->expects($this->once())
-            ->method('getStylesSets')
-            ->will($this->returnValue(array_merge($explicitStylesSets, $configuredStylesSets)));
-
-        $form = $this->factory->create($this->formType, null, ['styles' => $explicitStylesSets]);
-        $view = $form->createView();
-
-        $this->assertSame(array_merge($explicitStylesSets, $configuredStylesSets), $view->vars['styles']);
-    }
-
-    public function testDefaultTemplates()
+    public function testDefaultTemplates(): void
     {
         $form = $this->factory->create($this->formType);
         $view = $form->createView();
@@ -808,7 +352,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertEmpty($view->vars['templates']);
     }
 
-    public function testTemplatesWithExplicitTemplates()
+    public function testTemplatesWithExplicitTemplates(): void
     {
         $templates = [
             'default' => [
@@ -821,16 +365,6 @@ class CKEditorTypeTest extends AbstractTestCase
                 ],
             ],
         ];
-
-        $this->templateManager
-            ->expects($this->once())
-            ->method('setTemplates')
-            ->with($this->equalTo($templates));
-
-        $this->templateManager
-            ->expects($this->once())
-            ->method('getTemplates')
-            ->will($this->returnValue($templates));
 
         $form = $this->factory->create($this->formType, null, ['templates' => $templates]);
 
@@ -839,103 +373,7 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertSame($templates, $view->vars['templates']);
     }
 
-    public function testTemplatesWithConfiguredTemplates()
-    {
-        $templates = [
-            'default' => [
-                'imagesPath' => '/my/path',
-                'templates' => [
-                    [
-                        'title' => 'My Template',
-                        'html' => '<h1>Template</h1><p>Type your text here.</p>',
-                    ],
-                ],
-            ],
-        ];
-
-        $this->templateManager
-            ->expects($this->once())
-            ->method('getTemplates')
-            ->will($this->returnValue($templates));
-
-        $form = $this->factory->create($this->formType);
-        $view = $form->createView();
-
-        $this->assertSame($templates, $view->vars['templates']);
-    }
-
-    public function testTemplatesWithConfiguredAndExplicitTemplates()
-    {
-        $configuredTemplates = [
-            'default' => [
-                'imagesPath' => '/my/path',
-                'templates' => [
-                    [
-                        'title' => 'My Template',
-                        'html' => '<h1>Template</h1><p>Type your text here.</p>',
-                    ],
-                ],
-            ],
-        ];
-
-        $explicitTemplates = [
-            'extra' => [
-                'templates' => [
-                    [
-                        'title' => 'My Extra Template',
-                        'html' => '<h2>Template</h2><p>Type your text here.</p>',
-                    ],
-                ],
-            ],
-        ];
-
-        $this->templateManager
-            ->expects($this->once())
-            ->method('setTemplates')
-            ->with($this->equalTo($explicitTemplates));
-
-        $this->templateManager
-            ->expects($this->once())
-            ->method('getTemplates')
-            ->will($this->returnValue(array_merge($explicitTemplates, $configuredTemplates)));
-
-        $form = $this->factory->create($this->formType, null, ['templates' => $explicitTemplates]);
-        $view = $form->createView();
-
-        $this->assertSame(array_merge($explicitTemplates, $configuredTemplates), $view->vars['templates']);
-    }
-
-    public function testConfiguredDisable()
-    {
-        $this->ckEditorType->isEnable(false);
-
-        $options = [
-            'config' => [
-                'toolbar' => ['foo' => 'bar'],
-                'uiColor' => '#ffffff',
-            ],
-            'plugins' => [
-                'wordcount' => [
-                    'path' => '/my/path',
-                    'filename' => 'plugin.js',
-                ],
-            ],
-        ];
-
-        $form = $this->factory->create($this->formType, null, $options);
-        $view = $form->createView();
-
-        $this->assertArrayHasKey('enable', $view->vars);
-        $this->assertFalse($view->vars['enable']);
-
-        $this->assertArrayNotHasKey('autoload', $view->vars);
-        $this->assertArrayNotHasKey('config', $view->vars);
-        $this->assertArrayNotHasKey('plugins', $view->vars);
-        $this->assertArrayNotHasKey('stylesheets', $view->vars);
-        $this->assertArrayNotHasKey('templates', $view->vars);
-    }
-
-    public function testExplicitDisable()
+    public function testExplicitDisable(): void
     {
         $options = [
             'enable' => false,
@@ -962,5 +400,15 @@ class CKEditorTypeTest extends AbstractTestCase
         $this->assertArrayNotHasKey('plugins', $view->vars);
         $this->assertArrayNotHasKey('stylesheets', $view->vars);
         $this->assertArrayNotHasKey('templates', $view->vars);
+    }
+
+    /**
+     * @expectedException \FOS\CKEditorBundle\Exception\ConfigException
+     * @expectedExceptionMessage The CKEditor config "nop" does not exist.
+     */
+    public function testBadConfig(): void
+    {
+        $form = $this->factory->create($this->formType, null, ['config_name' => 'nop']);
+        $form->createView();
     }
 }

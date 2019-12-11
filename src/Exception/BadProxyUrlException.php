@@ -12,18 +12,15 @@
 
 namespace FOS\CKEditorBundle\Exception;
 
+use RuntimeException;
+
 /**
- * @author GeLo <geloen.eric@gmail.com>
+ * @author Marko Kunic <kunicmarko20@gmail.com>
  */
-class ConfigManagerException extends Exception
+final class BadProxyUrlException extends RuntimeException implements FOSCKEditorException
 {
-    /**
-     * @param string $name
-     *
-     * @return ConfigManagerException
-     */
-    public static function configDoesNotExist($name)
+    public static function fromEnvUrl(string $url): self
     {
-        return new static(sprintf('The CKEditor config "%s" does not exist.', $name));
+        return new static(sprintf('Unable to parse provided proxy url "%s".', $url));
     }
 }

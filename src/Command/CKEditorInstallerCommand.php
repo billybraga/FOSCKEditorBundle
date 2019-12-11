@@ -19,33 +19,28 @@ use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ChoiceQuestion;
 
 /**
  * @author GeLo <geloen.eric@gmail.com>
  */
-class CKEditorInstallerCommand extends Command
+final class CKEditorInstallerCommand extends Command
 {
     /**
      * @var CKEditorInstaller
      */
     private $installer;
 
-    /**
-     * @param CKEditorInstaller|null $installer
-     */
-    public function __construct(CKEditorInstaller $installer = null)
+    public function __construct(CKEditorInstaller $installer)
     {
         parent::__construct();
 
-        $this->installer = $installer ?: new CKEditorInstaller();
+        $this->installer = $installer;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('ckeditor:install')
@@ -55,7 +50,13 @@ class CKEditorInstallerCommand extends Command
                 'release',
                 null,
                 InputOption::VALUE_OPTIONAL,
-                'CKEditor release (basic, standard or full)'
+                'CKEditor release (basic, standard, full or custom)'
+            )
+            ->addOption(
+                'custom-build-id',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'CKEditor custom build ID'
             )
             ->addOption('tag', null, InputOption::VALUE_OPTIONAL, 'CKEditor tag (x.y.z or latest)')
             ->addOption(
@@ -69,6 +70,12 @@ class CKEditorInstallerCommand extends Command
                 null,
                 InputOption::VALUE_IS_ARRAY | InputOption::VALUE_OPTIONAL,
                 'Path to exclude when extracting CKEditor'
+            )
+            ->addOption(
+                'no-progress-bar',
+                'nobar',
+                InputOption::VALUE_NONE,
+                'Hide the progress bars?'
             )
             ->setHelp(
                 <<<'EOF'
@@ -88,6 +95,10 @@ You can install a specific version:
 
   <info>php %command.full_name% --tag=4.7.0</info>
 
+You can install custom build generated on https://ckeditor.com/cke4/builder:
+
+  <info>php %command.full_name% --release=custom --custom-build-id=574a82a0d3e9226d94b0e91d10eaa372</info>
+
 If there is a previous CKEditor installation detected, 
 you can control how it should be handled in non-interactive mode:
 
@@ -102,10 +113,7 @@ EOF
             );
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): void
     {
         $this->title($output);
 
@@ -118,13 +126,7 @@ EOF
         }
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return mixed[]
-     */
-    private function createOptions(InputInterface $input, OutputInterface $output)
+    private function createOptions(InputInterface $input, OutputInterface $output): array
     {
         $options = ['notifier' => $this->createNotifier($input, $output)];
 
@@ -134,6 +136,10 @@ EOF
 
         if ($input->hasOption('release')) {
             $options['release'] = $input->getOption('release');
+        }
+
+        if ($input->hasOption('custom-build-id')) {
+            $options['custom_build_id'] = $input->getOption('custom-build-id');
         }
 
         if ($input->hasOption('tag')) {
@@ -151,19 +157,15 @@ EOF
         return array_filter($options);
     }
 
-    /**
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return \Closure
-     */
-    private function createNotifier(InputInterface $input, OutputInterface $output)
+    private function createNotifier(InputInterface $input, OutputInterface $output): \Closure
     {
-        $clear = new ProgressBar($output);
-        $download = new ProgressBar($output);
-        $extract = new ProgressBar($output);
+        $barOutput = $input->getOption('no-progress-bar') ? new NullOutput() : $output;
 
-        return function ($type, $data) use ($input, $output, $clear, $download, $extract) {
+        $clear = new ProgressBar($barOutput);
+        $download = new ProgressBar($barOutput);
+        $extract = new ProgressBar($barOutput);
+
+        return function ($type, $data) use ($input, $output, $barOutput, $clear, $download, $extract) {
             switch ($type) {
                 case CKEditorInstaller::NOTIFY_CLEAR:
                     $result = $this->choice(
@@ -198,7 +200,7 @@ EOF
                     break;
 
                 case CKEditorInstaller::NOTIFY_CLEAR_COMPLETE:
-                    $this->finishProgressBar($clear, $output);
+                    $this->finishProgressBar($clear, $barOutput);
 
                     break;
 
@@ -218,12 +220,12 @@ EOF
                     break;
 
                 case CKEditorInstaller::NOTIFY_DOWNLOAD_COMPLETE:
-                    $this->finishProgressBar($download, $output);
+                    $this->finishProgressBar($download, $barOutput);
 
                     break;
 
                 case CKEditorInstaller::NOTIFY_DOWNLOAD_PROGRESS:
-                    $download->advance($data);
+                    $download->setProgress($data);
 
                     break;
 
@@ -238,7 +240,7 @@ EOF
                     break;
 
                 case CKEditorInstaller::NOTIFY_EXTRACT_COMPLETE:
-                    $this->finishProgressBar($extract, $output);
+                    $this->finishProgressBar($extract, $barOutput);
 
                     break;
 
@@ -255,10 +257,7 @@ EOF
         };
     }
 
-    /**
-     * @param OutputInterface $output
-     */
-    private function title(OutputInterface $output)
+    private function title(OutputInterface $output): void
     {
         $output->writeln(
             [
@@ -270,42 +269,28 @@ EOF
         );
     }
 
-    /**
-     * @param string|string[] $message
-     * @param OutputInterface $output
-     */
-    private function comment($message, OutputInterface $output)
+    private function comment(string $message, OutputInterface $output): void
     {
         $output->writeln(' // '.$message);
         $output->writeln('');
     }
 
-    /**
-     * @param string          $message
-     * @param OutputInterface $output
-     */
-    private function success($message, OutputInterface $output)
+    private function success(string $message, OutputInterface $output): void
     {
         $this->block('[OK] - '.$message, $output, 'green', 'black');
     }
 
-    /**
-     * @param string          $message
-     * @param OutputInterface $output
-     */
-    private function info($message, OutputInterface $output)
+    private function info(string $message, OutputInterface $output): void
     {
         $this->block('[INFO] - '.$message, $output, 'yellow', 'black');
     }
 
-    /**
-     * @param string          $message
-     * @param OutputInterface $output
-     * @param string          $background
-     * @param string          $font
-     */
-    private function block($message, OutputInterface $output, $background = null, $font = null)
-    {
+    private function block(
+        string $message,
+        OutputInterface $output,
+        string $background = null,
+        string $font = null
+    ): void {
         $options = [];
 
         if (null !== $background) {
@@ -328,16 +313,16 @@ EOF
     }
 
     /**
-     * @param string|string[] $question
-     * @param string[]        $choices
-     * @param string          $default
-     * @param InputInterface  $input
-     * @param OutputInterface $output
-     *
-     * @return string|null
+     * @param string[] $question
+     * @param string[] $choices
      */
-    private function choice($question, array $choices, $default, InputInterface $input, OutputInterface $output)
-    {
+    private function choice(
+        array $question,
+        array $choices,
+        string $default,
+        InputInterface $input,
+        OutputInterface $output
+    ): ?string {
         $helper = new QuestionHelper();
 
         if (is_array($question)) {
@@ -355,11 +340,7 @@ EOF
         return $result;
     }
 
-    /**
-     * @param ProgressBar     $progress
-     * @param OutputInterface $output
-     */
-    private function finishProgressBar($progress, OutputInterface $output)
+    private function finishProgressBar(ProgressBar $progress, OutputInterface $output): void
     {
         $progress->finish();
         $output->writeln(['', '']);

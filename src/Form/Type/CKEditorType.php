@@ -12,11 +12,7 @@
 
 namespace FOS\CKEditorBundle\Form\Type;
 
-use FOS\CKEditorBundle\Model\ConfigManagerInterface;
-use FOS\CKEditorBundle\Model\PluginManagerInterface;
-use FOS\CKEditorBundle\Model\StylesSetManagerInterface;
-use FOS\CKEditorBundle\Model\TemplateManagerInterface;
-use FOS\CKEditorBundle\Model\ToolbarManagerInterface;
+use FOS\CKEditorBundle\Config\CKEditorConfigurationInterface;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -28,412 +24,19 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 /**
  * @author GeLo <geloen.eric@gmail.com>
  */
-class CKEditorType extends AbstractType
+final class CKEditorType extends AbstractType
 {
     /**
-     * @var bool
+     * @var CKEditorConfigurationInterface
      */
-    private $enable = true;
+    private $configuration;
 
-    /**
-     * @var bool
-     */
-    private $async = false;
-
-    /**
-     * @var bool
-     */
-    private $autoload = true;
-
-    /**
-     * @var bool
-     */
-    private $autoInline = true;
-
-    /**
-     * @var bool
-     */
-    private $inline = false;
-
-    /**
-     * @var bool
-     */
-    private $jquery = false;
-
-    /**
-     * @var bool
-     */
-    private $requireJs = false;
-
-    /**
-     * @var bool
-     */
-    private $inputSync = false;
-
-    /**
-     * @var array
-     */
-    private $filebrowsers = [];
-
-    /**
-     * @var string
-     */
-    private $basePath = 'bundles/fosckeditor/';
-
-    /**
-     * @var string
-     */
-    private $jsPath = 'bundles/fosckeditor/ckeditor.js';
-
-    /**
-     * @var string
-     */
-    private $jqueryPath = 'bundles/fosckeditor/adapters/jquery.js';
-
-    /**
-     * @var ConfigManagerInterface
-     */
-    private $configManager;
-
-    /**
-     * @var PluginManagerInterface
-     */
-    private $pluginManager;
-
-    /**
-     * @var StylesSetManagerInterface
-     */
-    private $stylesSetManager;
-
-    /**
-     * @var TemplateManagerInterface
-     */
-    private $templateManager;
-
-    /**
-     * @var ToolbarManagerInterface
-     */
-    private $toolbarManager;
-
-    /**
-     * @param ConfigManagerInterface    $configManager
-     * @param PluginManagerInterface    $pluginManager
-     * @param StylesSetManagerInterface $stylesSetManager
-     * @param TemplateManagerInterface  $templateManager
-     * @param ToolbarManagerInterface   $toolbarManager
-     */
-    public function __construct(
-        ConfigManagerInterface $configManager,
-        PluginManagerInterface $pluginManager,
-        StylesSetManagerInterface $stylesSetManager,
-        TemplateManagerInterface $templateManager,
-        ToolbarManagerInterface $toolbarManager
-    ) {
-        $this->setConfigManager($configManager);
-        $this->setPluginManager($pluginManager);
-        $this->setStylesSetManager($stylesSetManager);
-        $this->setTemplateManager($templateManager);
-        $this->setToolbarManager($toolbarManager);
-    }
-
-    /**
-     * @param bool|null $enable
-     *
-     * @return bool
-     */
-    public function isEnable($enable = null)
+    public function __construct(CKEditorConfigurationInterface $configuration)
     {
-        if (null !== $enable) {
-            $this->enable = (bool) $enable;
-        }
-
-        return $this->enable;
+        $this->configuration = $configuration;
     }
 
-    /**
-     * @param bool|null $async
-     *
-     * @return bool
-     */
-    public function isAsync($async = null)
-    {
-        if (null !== $async) {
-            $this->async = (bool) $async;
-        }
-
-        return $this->async;
-    }
-
-    /**
-     * @param bool $autoload
-     *
-     * @return bool
-     */
-    public function isAutoload($autoload = null)
-    {
-        if (null !== $autoload) {
-            $this->autoload = (bool) $autoload;
-        }
-
-        return $this->autoload;
-    }
-
-    /**
-     * @param bool $autoInline
-     *
-     * @return bool
-     */
-    public function isAutoInline($autoInline = null)
-    {
-        if (null !== $autoInline) {
-            $this->autoInline = (bool) $autoInline;
-        }
-
-        return $this->autoInline;
-    }
-
-    /**
-     * @param bool $inline
-     *
-     * @return bool
-     */
-    public function isInline($inline = null)
-    {
-        if (null !== $inline) {
-            $this->inline = (bool) $inline;
-        }
-
-        return $this->inline;
-    }
-
-    /**
-     * @param bool $jquery
-     *
-     * @return bool
-     */
-    public function useJquery($jquery = null)
-    {
-        if (null !== $jquery) {
-            $this->jquery = (bool) $jquery;
-        }
-
-        return $this->jquery;
-    }
-
-    /**
-     * @param bool $requireJs
-     *
-     * @return bool
-     */
-    public function useRequireJs($requireJs = null)
-    {
-        if (null !== $requireJs) {
-            $this->requireJs = (bool) $requireJs;
-        }
-
-        return $this->requireJs;
-    }
-
-    /**
-     * @param bool $inputSync
-     *
-     * @return bool
-     */
-    public function isInputSync($inputSync = null)
-    {
-        if (null !== $inputSync) {
-            $this->inputSync = (bool) $inputSync;
-        }
-
-        return $this->inputSync;
-    }
-
-    /**
-     * @return bool
-     */
-    public function hasFilebrowsers()
-    {
-        return !empty($this->filebrowsers);
-    }
-
-    /**
-     * @return array
-     */
-    public function getFilebrowsers()
-    {
-        return $this->filebrowsers;
-    }
-
-    /**
-     * @param array $filebrowsers
-     */
-    public function setFilebrowsers(array $filebrowsers)
-    {
-        foreach ($filebrowsers as $filebrowser) {
-            $this->addFilebrowser($filebrowser);
-        }
-    }
-
-    /**
-     * @param string $filebrowser
-     *
-     * @return bool
-     */
-    public function hasFilebrowser($filebrowser)
-    {
-        return in_array($filebrowser, $this->filebrowsers, true);
-    }
-
-    /**
-     * @param string $filebrowser
-     */
-    public function addFilebrowser($filebrowser)
-    {
-        if (!$this->hasFilebrowser($filebrowser)) {
-            $this->filebrowsers[] = $filebrowser;
-        }
-    }
-
-    /**
-     * @param string $filebrowser
-     */
-    public function removeFilebrowser($filebrowser)
-    {
-        unset($this->filebrowsers[array_search($filebrowser, $this->filebrowsers, true)]);
-    }
-
-    /**
-     * @return string
-     */
-    public function getBasePath()
-    {
-        return $this->basePath;
-    }
-
-    /**
-     * @param string $basePath
-     */
-    public function setBasePath($basePath)
-    {
-        $this->basePath = $basePath;
-    }
-
-    /**
-     * @return string
-     */
-    public function getJsPath()
-    {
-        return $this->jsPath;
-    }
-
-    /**
-     * @param string $jsPath
-     */
-    public function setJsPath($jsPath)
-    {
-        $this->jsPath = $jsPath;
-    }
-
-    /**
-     * @return string
-     */
-    public function getJqueryPath()
-    {
-        return $this->jqueryPath;
-    }
-
-    /**
-     * @param string $jqueryPath
-     */
-    public function setJqueryPath($jqueryPath)
-    {
-        $this->jqueryPath = $jqueryPath;
-    }
-
-    /**
-     * @return ConfigManagerInterface
-     */
-    public function getConfigManager()
-    {
-        return $this->configManager;
-    }
-
-    /**
-     * @param ConfigManagerInterface $configManager
-     */
-    public function setConfigManager(ConfigManagerInterface $configManager)
-    {
-        $this->configManager = $configManager;
-    }
-
-    /**
-     * @return PluginManagerInterface
-     */
-    public function getPluginManager()
-    {
-        return $this->pluginManager;
-    }
-
-    /**
-     * @param PluginManagerInterface $pluginManager
-     */
-    public function setPluginManager(PluginManagerInterface $pluginManager)
-    {
-        $this->pluginManager = $pluginManager;
-    }
-
-    /**
-     * @return StylesSetManagerInterface
-     */
-    public function getStylesSetManager()
-    {
-        return $this->stylesSetManager;
-    }
-
-    /**
-     * @param StylesSetManagerInterface $stylesSetManager
-     */
-    public function setStylesSetManager(StylesSetManagerInterface $stylesSetManager)
-    {
-        $this->stylesSetManager = $stylesSetManager;
-    }
-
-    /**
-     * @return TemplateManagerInterface
-     */
-    public function getTemplateManager()
-    {
-        return $this->templateManager;
-    }
-
-    /**
-     * @param TemplateManagerInterface $templateManager
-     */
-    public function setTemplateManager(TemplateManagerInterface $templateManager)
-    {
-        $this->templateManager = $templateManager;
-    }
-
-    /**
-     * @return ToolbarManagerInterface
-     */
-    public function getToolbarManager()
-    {
-        return $this->toolbarManager;
-    }
-
-    /**
-     * @param ToolbarManagerInterface $toolbarManager
-     */
-    public function setToolbarManager(ToolbarManagerInterface $toolbarManager)
-    {
-        $this->toolbarManager = $toolbarManager;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function buildForm(FormBuilderInterface $builder, array $options)
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->setAttribute('enable', $options['enable']);
 
@@ -452,41 +55,31 @@ class CKEditorType extends AbstractType
         $builder->setAttribute('base_path', $options['base_path']);
         $builder->setAttribute('js_path', $options['js_path']);
         $builder->setAttribute('jquery_path', $options['jquery_path']);
+        $builder->setAttribute('config', $this->resolveConfig($options));
+        $builder->setAttribute('config_name', $options['config_name']);
+        $builder->setAttribute('plugins', array_merge($this->configuration->getPlugins(), $options['plugins']));
+        $builder->setAttribute('styles', array_merge($this->configuration->getStyles(), $options['styles']));
+        $builder->setAttribute('templates', array_merge($this->configuration->getTemplates(), $options['templates']));
+    }
 
-        $configManager = clone $this->configManager;
-        $pluginManager = clone $this->pluginManager;
-        $stylesSetManager = clone $this->stylesSetManager;
-        $templateManager = clone $this->templateManager;
-
+    private function resolveConfig(array $options): array
+    {
         $config = $options['config'];
 
         if (null === $options['config_name']) {
             $options['config_name'] = uniqid('fos', true);
-            $configManager->setConfig($options['config_name'], $config);
         } else {
-            $configManager->mergeConfig($options['config_name'], $config);
+            $config = array_merge($this->configuration->getConfig($options['config_name']), $config);
         }
-
-        $pluginManager->setPlugins($options['plugins']);
-        $stylesSetManager->setStylesSets($options['styles']);
-        $templateManager->setTemplates($options['templates']);
-
-        $config = $configManager->getConfig($options['config_name']);
 
         if (isset($config['toolbar']) && is_string($config['toolbar'])) {
-            $config['toolbar'] = $this->toolbarManager->resolveToolbar($config['toolbar']);
+            $config['toolbar'] = $this->configuration->getToolbar($config['toolbar']);
         }
 
-        $builder->setAttribute('config', $config);
-        $builder->setAttribute('plugins', $pluginManager->getPlugins());
-        $builder->setAttribute('styles', $stylesSetManager->getStylesSets());
-        $builder->setAttribute('templates', $templateManager->getTemplates());
+        return $config;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function buildView(FormView $view, FormInterface $form, array $options)
+    public function buildView(FormView $view, FormInterface $form, array $options): void
     {
         $config = $form->getConfig();
         $view->vars['enable'] = $config->getAttribute('enable');
@@ -507,31 +100,29 @@ class CKEditorType extends AbstractType
         $view->vars['js_path'] = $config->getAttribute('js_path');
         $view->vars['jquery_path'] = $config->getAttribute('jquery_path');
         $view->vars['config'] = $config->getAttribute('config');
+        $view->vars['config_name'] = $config->getAttribute('config_name');
         $view->vars['plugins'] = $config->getAttribute('plugins');
         $view->vars['styles'] = $config->getAttribute('styles');
         $view->vars['templates'] = $config->getAttribute('templates');
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver
             ->setDefaults([
-                'enable' => $this->enable,
-                'async' => $this->async,
-                'autoload' => $this->autoload,
-                'auto_inline' => $this->autoInline,
-                'inline' => $this->inline,
-                'jquery' => $this->jquery,
-                'require_js' => $this->requireJs,
-                'input_sync' => $this->inputSync,
-                'filebrowsers' => $this->filebrowsers,
-                'base_path' => $this->basePath,
-                'js_path' => $this->jsPath,
-                'jquery_path' => $this->jqueryPath,
-                'config_name' => $this->configManager->getDefaultConfig(),
+                'enable' => $this->configuration->isEnable(),
+                'async' => $this->configuration->isAsync(),
+                'autoload' => $this->configuration->isAutoload(),
+                'auto_inline' => $this->configuration->isAutoInline(),
+                'inline' => $this->configuration->isInline(),
+                'jquery' => $this->configuration->isJquery(),
+                'require_js' => $this->configuration->isRequireJs(),
+                'input_sync' => $this->configuration->isInputSync(),
+                'filebrowsers' => $this->configuration->getFilebrowsers(),
+                'base_path' => $this->configuration->getBasePath(),
+                'js_path' => $this->configuration->getJsPath(),
+                'jquery_path' => $this->configuration->getJqueryPath(),
+                'config_name' => $this->configuration->getDefaultConfig(),
                 'config' => [],
                 'plugins' => [],
                 'styles' => [],
@@ -563,26 +154,12 @@ class CKEditorType extends AbstractType
             });
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getParent()
+    public function getParent(): string
     {
-        return method_exists(AbstractType::class, 'getBlockPrefix') ? TextareaType::class : 'textarea';
+        return TextareaType::class;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getName()
-    {
-        return $this->getBlockPrefix();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getBlockPrefix()
+    public function getBlockPrefix(): string
     {
         return 'ckeditor';
     }

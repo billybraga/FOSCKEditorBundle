@@ -12,62 +12,28 @@
 
 namespace FOS\CKEditorBundle\Tests;
 
-use FOS\CKEditorBundle\DependencyInjection\Compiler\ResourceCompilerPass;
-use FOS\CKEditorBundle\DependencyInjection\Compiler\TemplatingCompilerPass;
+use FOS\CKEditorBundle\DependencyInjection\FOSCKEditorExtension;
 use FOS\CKEditorBundle\FOSCKEditorBundle;
-use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\HttpKernel\Bundle\Bundle;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @author GeLo <geloen.eric@gmail.com>
  * @author Adam Misiorny <adam.misiorny@gmail.com>
  */
-class FOSCKEditorBundleTest extends AbstractTestCase
+class FOSCKEditorBundleTest extends TestCase
 {
     /**
      * @var FOSCKEditorBundle
      */
     private $bundle;
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->bundle = new FOSCKEditorBundle();
     }
 
-    public function testBundle()
+    public function testExtension(): void
     {
-        $this->assertInstanceOf(Bundle::class, $this->bundle);
-    }
-
-    public function testCompilerPasses()
-    {
-        $containerBuilder = $this->createContainerBuilderMock();
-        $containerBuilder
-            ->expects($this->at(0))
-            ->method('addCompilerPass')
-            ->with($this->isInstanceOf(ResourceCompilerPass::class))
-            ->will($this->returnSelf());
-
-        $containerBuilder
-            ->expects($this->at(1))
-            ->method('addCompilerPass')
-            ->with($this->isInstanceOf(TemplatingCompilerPass::class))
-            ->will($this->returnSelf());
-
-        $this->bundle->build($containerBuilder);
-    }
-
-    /**
-     * @return ContainerBuilder|\PHPUnit_Framework_MockObject_MockObject
-     */
-    private function createContainerBuilderMock()
-    {
-        return $this->getMockBuilder(ContainerBuilder::class)
-            ->disableOriginalConstructor()
-            ->setMethods(['addCompilerPass'])
-            ->getMock();
+        $this->assertInstanceOf(FOSCKEditorExtension::class, $this->bundle->getContainerExtension());
     }
 }

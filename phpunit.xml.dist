@@ -15,6 +15,7 @@
     <groups>
         <exclude>
             <group>installation</group>
+            <group>proxy</group>
         </exclude>
     </groups>
 
@@ -25,7 +26,6 @@
                 <directory>./src/Resources</directory>
                 <directory>./tests</directory>
                 <directory>./vendor</directory>
-                <group>installation</group>
             </exclude>
         </whitelist>
     </filter>

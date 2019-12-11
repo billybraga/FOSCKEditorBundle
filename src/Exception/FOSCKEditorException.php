@@ -12,18 +12,11 @@
 
 namespace FOS\CKEditorBundle\Exception;
 
+use Throwable;
+
 /**
  * @author GeLo <geloen.eric@gmail.com>
  */
-class PluginManagerException extends Exception
+interface FOSCKEditorException extends Throwable
 {
-    /**
-     * @param string $name
-     *
-     * @return PluginManagerException
-     */
-    public static function pluginDoesNotExist($name)
-    {
-        return new static(sprintf('The CKEditor plugin "%s" does not exist.', $name));
-    }
 }

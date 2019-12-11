@@ -4,4 +4,5 @@ parameters:
         - %currentWorkingDirectory%/src/Resources/views/Form/*html.php
         - %currentWorkingDirectory%/tests/autoload.php
     ignoreErrors:
-        - '#AbstractTestCase::getMock()#'
+        - '#Call to an undefined method Symfony\\Component\\Config\\Definition\\Builder\\NodeDefinition\:\:#'
+        - '#Cannot call method on Symfony\Component\Config\Definition\Builder\NodeParentInterface|null.#'

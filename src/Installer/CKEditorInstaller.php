@@ -12,19 +12,22 @@
 
 namespace FOS\CKEditorBundle\Installer;
 
+use FOS\CKEditorBundle\Exception\BadProxyUrlException;
 use Symfony\Component\OptionsResolver\Options;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
  * @author GeLo <geloen.eric@gmail.com>
  */
-class CKEditorInstaller
+final class CKEditorInstaller
 {
     const RELEASE_BASIC = 'basic';
 
     const RELEASE_FULL = 'full';
 
     const RELEASE_STANDARD = 'standard';
+
+    const RELEASE_CUSTOM = 'custom';
 
     const VERSION_LATEST = 'latest';
 
@@ -68,13 +71,15 @@ class CKEditorInstaller
     private static $archive = 'https://github.com/ckeditor/ckeditor-releases/archive/%s/%s.zip';
 
     /**
+     * @var string
+     */
+    private static $customBuildArchive = 'https://ckeditor.com/cke4/builder/download/%s';
+
+    /**
      * @var OptionsResolver
      */
     private $resolver;
 
-    /**
-     * @param mixed[] $options
-     */
     public function __construct(array $options = [])
     {
         $this->resolver = (new OptionsResolver())
@@ -84,25 +89,22 @@ class CKEditorInstaller
                 'notifier' => null,
                 'path' => dirname(__DIR__).'/Resources/public',
                 'release' => self::RELEASE_FULL,
+                'custom_build_id' => null,
                 'version' => self::VERSION_LATEST,
             ], $options))
             ->setAllowedTypes('excludes', 'array')
             ->setAllowedTypes('notifier', ['null', 'callable'])
             ->setAllowedTypes('path', 'string')
+            ->setAllowedTypes('custom_build_id', ['null', 'string'])
             ->setAllowedTypes('version', 'string')
             ->setAllowedValues('clear', [self::CLEAR_DROP, self::CLEAR_KEEP, self::CLEAR_SKIP, null])
-            ->setAllowedValues('release', [self::RELEASE_BASIC, self::RELEASE_FULL, self::RELEASE_STANDARD])
+            ->setAllowedValues('release', [self::RELEASE_BASIC, self::RELEASE_FULL, self::RELEASE_STANDARD, self::RELEASE_CUSTOM])
             ->setNormalizer('path', function (Options $options, $path) {
                 return rtrim($path, '/');
             });
     }
 
-    /**
-     * @param mixed[] $options
-     *
-     * @return bool
-     */
-    public function install(array $options = [])
+    public function install(array $options = []): bool
     {
         $options = $this->resolver->resolve($options);
 
@@ -115,12 +117,7 @@ class CKEditorInstaller
         return true;
     }
 
-    /**
-     * @param mixed[] $options
-     *
-     * @return int
-     */
-    private function clear(array $options)
+    private function clear(array $options): string
     {
         if (!file_exists($options['path'].'/ckeditor.js')) {
             return self::CLEAR_DROP;
@@ -167,14 +164,9 @@ class CKEditorInstaller
         return $options['clear'];
     }
 
-    /**
-     * @param mixed[] $options
-     *
-     * @return string
-     */
-    private function download(array $options)
+    private function download(array $options): string
     {
-        $url = sprintf(self::$archive, $options['release'], $options['version']);
+        $url = $this->getDownloadUrl($options);
         $this->notify($options['notifier'], self::NOTIFY_DOWNLOAD, $url);
 
         $zip = @file_get_contents($url, false, $this->createStreamContext($options['notifier']));
@@ -183,7 +175,7 @@ class CKEditorInstaller
             throw $this->createException(sprintf('Unable to download CKEditor ZIP archive from "%s".', $url));
         }
 
-        $path = tempnam(sys_get_temp_dir(), 'ckeditor-'.$options['release'].'-'.$options['version'].'.zip');
+        $path = (string) tempnam(sys_get_temp_dir(), 'ckeditor-'.$options['release'].'-'.$options['version'].'.zip');
 
         if (!@file_put_contents($path, $zip)) {
             throw $this->createException(sprintf('Unable to write CKEditor ZIP archive to "%s".', $path));
@@ -194,9 +186,24 @@ class CKEditorInstaller
         return $path;
     }
 
+    private function getDownloadUrl(array $options): string
+    {
+        if (self::RELEASE_CUSTOM !== $options['release']) {
+            return sprintf(self::$archive, $options['release'], $options['version']);
+        }
+
+        if (null === $options['custom_build_id']) {
+            throw $this->createException('Unable to download CKEditor ZIP archive. Custom build ID is not specified.');
+        }
+
+        if (self::VERSION_LATEST !== $options['version']) {
+            throw $this->createException('Unable to download CKEditor ZIP archive. Specifying version for custom build is not supported.');
+        }
+
+        return sprintf(self::$customBuildArchive, $options['custom_build_id']);
+    }
+
     /**
-     * @param callable|null $notifier
-     *
      * @return resource
      */
     private function createStreamContext(callable $notifier = null)
@@ -205,9 +212,17 @@ class CKEditorInstaller
         $proxy = getenv('https_proxy') ?: getenv('http_proxy');
 
         if ($proxy) {
-            $context['proxy'] = $proxy;
-            $context['request_fulluri'] = (bool) getenv('https_proxy_request_fulluri') ?:
-                getenv('http_proxy_request_fulluri');
+            $proxyUrl = parse_url($proxy);
+
+            if (false === $proxyUrl || !isset($proxyUrl['host']) || !isset($proxyUrl['port'])) {
+                throw BadProxyUrlException::fromEnvUrl($proxy);
+            }
+
+            $context['http'] = [
+                'proxy' => 'tcp://'.$proxyUrl['host'].':'.$proxyUrl['port'],
+                'request_fulluri' => (bool) getenv('https_proxy_request_fulluri') ?:
+                    getenv('http_proxy_request_fulluri'),
+            ];
         }
 
         return stream_context_create($context, [
@@ -238,11 +253,7 @@ class CKEditorInstaller
         ]);
     }
 
-    /**
-     * @param string  $path
-     * @param mixed[] $options
-     */
-    private function extract($path, array $options)
+    private function extract(string $path, array $options): void
     {
         $this->notify($options['notifier'], self::NOTIFY_EXTRACT, $options['path']);
 
@@ -251,15 +262,19 @@ class CKEditorInstaller
 
         $this->notify($options['notifier'], self::NOTIFY_EXTRACT_SIZE, $zip->numFiles);
 
-        $offset = 20 + strlen($options['release']) + strlen($options['version']);
+        if (self::RELEASE_CUSTOM === $options['release']) {
+            $offset = 9;
+        } else {
+            $offset = 20 + strlen($options['release']) + strlen($options['version']);
+        }
 
         for ($i = 0; $i < $zip->numFiles; ++$i) {
-            $this->extractFile(
-                $file = $zip->getNameIndex($i),
-                substr($file, $offset),
-                $path,
-                $options
-            );
+            $filename = $zip->getNameIndex($i);
+            $isDirectory = ('/' === substr($filename, -1, 1));
+
+            if (!$isDirectory) {
+                $this->extractFile($filename, substr($filename, $offset), $path, $options);
+            }
         }
 
         $zip->close();
@@ -272,13 +287,7 @@ class CKEditorInstaller
         }
     }
 
-    /**
-     * @param string  $file
-     * @param string  $rewrite
-     * @param string  $origin
-     * @param mixed[] $options
-     */
-    private function extractFile($file, $rewrite, $origin, array $options)
+    private function extractFile(string $file, string $rewrite, string $origin, array $options): void
     {
         $this->notify($options['notifier'], self::NOTIFY_EXTRACT_PROGRESS, $rewrite);
 
@@ -291,12 +300,9 @@ class CKEditorInstaller
             }
         }
 
-        if ('/' === substr($from, -1)) {
-            if (!is_dir($to) && !@mkdir($to)) {
-                throw $this->createException(sprintf('Unable to create the directory "%s".', $to));
-            }
-
-            return;
+        $targetDirectory = dirname($to);
+        if (!is_dir($targetDirectory) && !@mkdir($targetDirectory, 0777, true)) {
+            throw $this->createException(sprintf('Unable to create the directory "%s".', $targetDirectory));
         }
 
         if (!@copy($from, $to)) {
@@ -305,25 +311,18 @@ class CKEditorInstaller
     }
 
     /**
-     * @param callable|null $notifier
-     * @param string        $type
-     * @param mixed         $data
+     * @param mixed $data
      *
      * @return mixed
      */
-    private function notify(callable $notifier = null, $type, $data = null)
+    private function notify(callable $notifier = null, string $type, $data = null)
     {
         if (null !== $notifier) {
             return $notifier($type, $data);
         }
     }
 
-    /**
-     * @param string $message
-     *
-     * @return \RuntimeException
-     */
-    private function createException($message)
+    private function createException(string $message): \RuntimeException
     {
         $error = error_get_last();
 

@@ -12,87 +12,63 @@
 
 namespace FOS\CKEditorBundle\Builder;
 
-use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
 /**
  * @author GeLo <geloen.eric@gmail.com>
  */
-class JsonBuilder
+final class JsonBuilder
 {
     /**
      * @var PropertyAccessorInterface
      */
-    private $accessor;
+    private $propertyAccessor;
 
     /**
      * @var array
      */
-    private $values;
+    private $values = [];
 
     /**
      * @var array
      */
-    private $escapes;
+    private $escapes = [];
 
     /**
      * @var int
      */
-    private $jsonEncodeOptions;
+    private $jsonEncodeOptions = 0;
 
-    /**
-     * @param PropertyAccessorInterface|null $propertyAccessor
-     */
-    public function __construct(PropertyAccessorInterface $propertyAccessor = null)
+    public function __construct(PropertyAccessorInterface $propertyAccessor)
     {
-        $this->accessor = $propertyAccessor ?: new PropertyAccessor();
+        $this->propertyAccessor = $propertyAccessor;
 
         $this->reset();
     }
 
-    /**
-     * @return int
-     */
-    public function getJsonEncodeOptions()
+    public function getJsonEncodeOptions(): int
     {
         return $this->jsonEncodeOptions;
     }
 
-    /**
-     * @param int $jsonEncodeOptions
-     *
-     * @return JsonBuilder
-     */
-    public function setJsonEncodeOptions($jsonEncodeOptions)
+    public function setJsonEncodeOptions(int $jsonEncodeOptions): self
     {
         $this->jsonEncodeOptions = $jsonEncodeOptions;
 
         return $this;
     }
 
-    /**
-     * @return bool
-     */
-    public function hasValues()
+    public function hasValues(): bool
     {
         return !empty($this->values);
     }
 
-    /**
-     * @return array
-     */
-    public function getValues()
+    public function getValues(): array
     {
         return $this->values;
     }
 
-    /**
-     * @param array  $values
-     * @param string $pathPrefix
-     *
-     * @return JsonBuilder
-     */
-    public function setValues(array $values, $pathPrefix = null)
+    public function setValues(array $values, string $pathPrefix = null): self
     {
         foreach ($values as $key => $value) {
             $path = sprintf('%s[%s]', $pathPrefix, $key);
@@ -108,16 +84,12 @@ class JsonBuilder
     }
 
     /**
-     * @param string $path
-     * @param mixed  $value
-     * @param bool   $escapeValue
-     *
-     * @return JsonBuilder
+     * @param mixed $value
      */
-    public function setValue($path, $value, $escapeValue = true)
+    public function setValue(string $path, $value, bool $escapeValue = true): self
     {
         if (!$escapeValue) {
-            $placeholder = uniqid('ivory', true);
+            $placeholder = uniqid('friendsofsymfony', true);
             $this->escapes[sprintf('"%s"', $placeholder)] = $value;
 
             $value = $placeholder;
@@ -128,22 +100,14 @@ class JsonBuilder
         return $this;
     }
 
-    /**
-     * @param string $path
-     *
-     * @return JsonBuilder
-     */
-    public function removeValue($path)
+    public function removeValue(string $path): self
     {
         unset($this->values[$path], $this->escapes[$path]);
 
         return $this;
     }
 
-    /**
-     * @return JsonBuilder
-     */
-    public function reset()
+    public function reset(): self
     {
         $this->values = [];
         $this->escapes = [];
@@ -152,21 +116,22 @@ class JsonBuilder
         return $this;
     }
 
-    /**
-     * @return string
-     */
-    public function build()
+    public function build(): string
     {
-        $json = [];
+        $values = [];
 
         foreach ($this->values as $path => $value) {
-            $this->accessor->setValue($json, $path, $value);
+            $this->propertyAccessor->setValue($values, $path, $value);
         }
+
+        $json = json_encode($values, $this->jsonEncodeOptions);
+
+        \assert(\is_string($json));
 
         return str_replace(
             array_keys($this->escapes),
             array_values($this->escapes),
-            json_encode($json, $this->jsonEncodeOptions)
+            $json
         );
     }
 }
